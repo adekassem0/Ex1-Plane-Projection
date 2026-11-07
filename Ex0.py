@@ -110,15 +110,26 @@ def load_volume(path):
     return to_uint8(data)
 
 
-def make_error_frame(width, height, message):
+def make_error_frame(width, height, title, detail=""):
+    """Black frame with a red title and the reason (wrapped) below it."""
     import cv2
+    font = cv2.FONT_HERSHEY_SIMPLEX
     frame = np.zeros((height, width, 3), dtype=np.uint8)
     scale = 1.0
-    while scale > 0.3 and cv2.getTextSize(
-            message, cv2.FONT_HERSHEY_SIMPLEX, scale, 2)[0][0] > width - 20:
+    while scale > 0.3 and cv2.getTextSize(title, font, scale, 2)[0][0] > width - 20:
         scale -= 0.05
-    cv2.putText(frame, message, (10, height // 2), cv2.FONT_HERSHEY_SIMPLEX,
-                scale, (0, 0, 255), 2)
+    y = height // 2 - 20
+    cv2.putText(frame, title, (10, y), font, scale, (0, 0, 255), 2)
+    line, lines = "", []
+    for word in detail.split():                      # simple word wrap
+        if cv2.getTextSize((line + " " + word).strip(), font, 0.5, 1)[0][0] > width - 20:
+            lines.append(line)
+            line = word
+        else:
+            line = (line + " " + word).strip()
+    lines.append(line)
+    for i, text in enumerate(lines[:6]):
+        cv2.putText(frame, text, (10, y + 35 + 24 * i), font, 0.5, (255, 255, 255), 1)
     return frame
 
 
@@ -167,7 +178,7 @@ def main(argv):
     out = cv2.VideoWriter(mp4_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
     for n, img, err in results:
         if img is None:
-            frame = make_error_frame(w, h, f"ERROR line {n}")
+            frame = make_error_frame(w, h, f"ERROR line {n}", err)
         else:
             frame = np.zeros((h, w, 3), dtype=np.uint8)
             top, left = (h - img.shape[0]) // 2, (w - img.shape[1]) // 2

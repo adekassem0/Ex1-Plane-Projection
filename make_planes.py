@@ -1,6 +1,7 @@
 """make_planes.py - generate a planes.csv that sweeps through a whole NRRD volume.
 
-Usage:  python make_planes.py file.nrrd planes.csv [--with-errors]
+Usage:  python make_planes.py file.nrrd planes.csv [--with-errors] [--axial]
+        --axial adds a third sweep (axial / horizontal slices, top of the head downwards)
         --with-errors adds 3 deliberately invalid rows (for the error-frame demo)
 
 The orientation of the volume (which array axis is left-right, front-back,
@@ -75,7 +76,7 @@ WEDGE_HALF_ANGLE = 30    # degrees between the wedge's centre line and each leg
 WEDGE_AP_POS = 0.5       # coronal level of the wedge (0 = front, 1 = back)
 
 
-def build(shape, roles, step_coronal=3):
+def build(shape, roles, step_coronal=3, axial=False):
     ext = {role: shape[roles[role][0]] - 1 for role in roles}
     L, P, S = ext["LR"], ext["AP"], ext["SI"]
 
@@ -92,6 +93,9 @@ def build(shape, roles, step_coronal=3):
         rows.append([*vox(l, 0, S), *vox(l, P, S), *vox(l, 0, 0), *vox(l, P, 0)])
     for p in range(0, P + 1, step_coronal):         # 2) coronal, patient-right on the left
         rows.append([*vox(0, p, S), *vox(L, p, S), *vox(0, p, 0), *vox(L, p, 0)])
+    if axial:                                       # 2b) axial, front on top, patient-right on the left
+        for s in range(S, -1, -3):                  # from the top of the head downwards
+            rows.append([*vox(0, 0, s), *vox(L, 0, s), *vox(0, P, s), *vox(L, P, s)])
     # 3) isosceles TRIANGLE (a, b, c) in a coronal plane, apex a at the centre,
     #    spinning around the plane's normal like a radar
     p0 = WEDGE_AP_POS * P
@@ -117,7 +121,7 @@ def main(argv):
         roles = {"AP": (0, True), "SI": (1, True), "LR": (2, True)}
     print("axes:", {role: f"array axis {ax}" + ("" if grows else " (reversed)")
                     for role, (ax, grows) in roles.items()})
-    rows = build(shape, roles)
+    rows = build(shape, roles, axial="--axial" in argv)
     if "--with-errors" in argv:   # 3 invalid rows -> 3 "ERROR" frames in the video
         rows[100:100] = [[0, 0, 0, 100, 0, 0, 0, 90, 0],   # not isosceles
                          ["a", "b", "c"],                  # not numbers

@@ -27,7 +27,6 @@ def project_plane(M, points):
         for x1 in range(int(d12) + 1):
             px, py, pz = int(p[0]), int(p[1]), int(p[2])
 
-            # דגימה מהמטריצה התלת-ממדית בגבולות המותרים
             if 0 <= px < M.shape[0] and 0 <= py < M.shape[1] and 0 <= pz < M.shape[2]:
                 v = M[px, py, pz]
             else:
@@ -66,14 +65,12 @@ if __name__ == "__main__":
     for i, plane in enumerate(planes):
         print(f"Processing plane {i + 1}/{len(planes)}...")
 
-        # חילוץ הנקודות לבדיקת תקינות (אפסילון 0.001 כפי שנדרש במטלה)
         a, b, c = plane[0], plane[1], plane[2]
         dist_ab = dist(a, b)
         dist_ac = dist(a, c)
 
         if abs(dist_ab - dist_ac) >= 0.001:
             print(f"Invalid plane {i + 1} detected: Triangle is not isosceles. Generating error frame.")
-            # יצירת פריים שגיאה בגווני אפור
             error_frame = np.zeros((500, 500), dtype=np.uint8)
             cv2.putText(error_frame, "ERROR: INVALID", (50, 250), cv2.FONT_HERSHEY_SIMPLEX, 1.5, 255, 3)
             frames.append(error_frame)
@@ -81,14 +78,12 @@ if __name__ == "__main__":
             frames.append(project_plane(M, plane))
 
     if frames:
-        # איתור הממדים המקסימליים כדי ש-OpenCV לא ישמיט פריימים
         max_h = max(frame.shape[0] for frame in frames)
         max_w = max(frame.shape[1] for frame in frames)
 
         out = cv2.VideoWriter(mp4_file, cv2.VideoWriter_fourcc(*'mp4v'), 30.0, (max_w, max_h), False)
 
         for frame in frames:
-            # יישור וריפוד של הפריים כדי שיתאים למידות הווידאו
             padded_frame = np.zeros((max_h, max_w), dtype=np.uint8)
             h, w = frame.shape
             padded_frame[:h, :w] = frame

@@ -60,18 +60,39 @@ if __name__ == "__main__":
         for row in csv.reader(f):
             if row:
                 pts = [float(val) for val in row]
-                # חילוץ 3 נקודות מהשורה
                 planes.append([(pts[0], pts[1], pts[2]), (pts[3], pts[4], pts[5]), (pts[6], pts[7], pts[8])])
 
     frames = []
     for i, plane in enumerate(planes):
         print(f"Processing plane {i + 1}/{len(planes)}...")
-        frames.append(project_plane(M, plane))
+
+        # חילוץ הנקודות לבדיקת תקינות (אפסילון 0.001 כפי שנדרש במטלה)
+        a, b, c = plane[0], plane[1], plane[2]
+        dist_ab = dist(a, b)
+        dist_ac = dist(a, c)
+
+        if abs(dist_ab - dist_ac) >= 0.001:
+            print(f"Invalid plane {i + 1} detected: Triangle is not isosceles. Generating error frame.")
+            # יצירת פריים שגיאה בגווני אפור
+            error_frame = np.zeros((500, 500), dtype=np.uint8)
+            cv2.putText(error_frame, "ERROR: INVALID", (50, 250), cv2.FONT_HERSHEY_SIMPLEX, 1.5, 255, 3)
+            frames.append(error_frame)
+        else:
+            frames.append(project_plane(M, plane))
 
     if frames:
-        height, width = frames[0].shape
-        out = cv2.VideoWriter(mp4_file, cv2.VideoWriter_fourcc(*'mp4v'), 30.0, (width, height), False)
+        # איתור הממדים המקסימליים כדי ש-OpenCV לא ישמיט פריימים
+        max_h = max(frame.shape[0] for frame in frames)
+        max_w = max(frame.shape[1] for frame in frames)
+
+        out = cv2.VideoWriter(mp4_file, cv2.VideoWriter_fourcc(*'mp4v'), 30.0, (max_w, max_h), False)
+
         for frame in frames:
-            out.write(frame)
+            # יישור וריפוד של הפריים כדי שיתאים למידות הווידאו
+            padded_frame = np.zeros((max_h, max_w), dtype=np.uint8)
+            h, w = frame.shape
+            padded_frame[:h, :w] = frame
+            out.write(padded_frame)
+
         out.release()
         print(f"Video saved to {mp4_file}")
